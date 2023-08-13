@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>HAProxy Manager</title>
+    <!-- Bootstrap CSS CDN -->
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      #editForm {
+        border: 1px solid #ccc;
+        padding: 20px;
+        margin-top: 20px;
+        width: 300px;
+      }
+    </style>
+  </head>
+
+  <body class="container mt-4">
+    <h1 class="text-center">HAProxy Services</h1>
+
+    <h2 class="mt-4">Add New Service</h2>
+    <form id="addServiceForm" class="mb-4">
+      <div class="form-group">
+        <label for="newServerName">Server Name:</label>
+        <input type="text" id="newServerName" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label for="newDomain">Domain:</label>
+        <input type="text" id="newDomain" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label for="newLocalPort">Local Port:</label>
+        <input type="text" id="newLocalPort" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label for="newLocalHost">Local Host:</label>
+        <input
+          type="text"
+          id="newLocalHost"
+          class="form-control"
+          value="127.0.0.1"
+        />
+      </div>
+      <button type="button" onclick="addService()" class="btn btn-primary">
+        Add
+      </button>
+    </form>
+
+    <div id="editForm" style="display: none">
+      <h2>Edit Service</h2>
+      <form>
+        <div class="form-group">
+          <label for="editServerName">Server Name:</label>
+          <input type="text" id="editServerName" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="editDomain">Domain:</label>
+          <input type="text" id="editDomain" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="editLocalPort">Local Port:</label>
+          <input type="text" id="editLocalPort" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="editLocalHost">Local Host:</label>
+          <input
+            type="text"
+            id="editLocalHost"
+            class="form-control"
+            value="127.0.0.1"
+          />
+        </div>
+        <button type="button" onclick="submitEdit()" class="btn btn-primary">
+          Update
+        </button>
+        <button type="button" onclick="cancelEdit()" class="btn btn-secondary">
+          Cancel
+        </button>
+      </form>
+    </div>
+
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Server Name</th>
+          <th>Domain</th>
+          <th>Local Port</th>
+          <th>Local Host</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for service in services %}
+        <tr>
+          <td>{{ service.server_name }}</td>
+          <td>{{ service.domain }}</td>
+          <td>{{ service.local_port }}</td>
+          <td>{{ service.local_host }}</td>
+          <td>
+            <button class="btn btn-warning btn-sm" onclick="editService(this)">
+              Edit</button
+            >&nbsp;<button
+              class="btn btn-danger btn-sm"
+              onclick="deleteService(this)"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Bootstrap JS, Popper.js, and jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+      function deleteService(buttonElement) {
+        // Get the parent <tr> element of the clicked button
+        var parentRow = buttonElement.parentElement.parentElement;
+
+        // Extract the values from the respective <td> elements
+        var server_name = parentRow.children[0].innerText; // Assuming server_name is in the first column
+        var domain = parentRow.children[1].innerText; // Assuming domain is in the second column
+
+        // Now, make the fetch request as before
+        fetch(`/delete?server_name=${server_name}&domain=${domain}`, {
+          method: "POST",
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              alert(data.message);
+              location.reload(); // 重新加载页面以显示更新后的服务列表
+            } else {
+              alert("Failed to delete the service.");
+            }
+          });
+      }
+
+      function restartHAProxy() {
+        fetch("/restart", { method: "GET" })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              alert(data.message);
+            } else {
+              alert("Failed to restart HAProxy.");
+            }
+          });
+      }
+
+      function showEditForm(server_name, domain, local_port, local_host) {
+        document.getElementById("editServerName").value = server_name;
+        document.getElementById("editDomain").value = domain;
+        document.getElementById("editLocalPort").value = local_port;
+        document.getElementById("editLocalHost").value = local_host;
+        document.getElementById("editForm").style.display = "block";
+      }
+
+      function hideEditForm() {
+        document.getElementById("editForm").style.display = "none";
+      }
+
+      function saveEdit() {
+        const server_name = document.getElementById("editServerName").value;
+        const domain = document.getElementById("editDomain").value;
+        const local_port = document.getElementById("editLocalPort").value;
+        const local_host = document.getElementById("editLocalHost").value;
+
+        fetch(
+          `/edit?server_name=${server_name}&domain=${domain}&new_server_name=${server_name}&new_domain=${domain}&new_local_port=${local_port}&new_local_host=${local_host}`,
+          { method: "POST" }
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              alert(data.message);
+              location.reload();
+            } else {
+              alert("Failed to edit the service.");
+            }
+          });
+      }
+      function addService() {
+        const server_name = document.getElementById("newServerName").value;
+        const domain = document.getElementById("newDomain").value;
+        const local_port = document.getElementById("newLocalPort").value;
+        const local_host = document.getElementById("newLocalHost").value;
+
+        fetch(
+          `/add?server_name=${server_name}&domain=${domain}&local_port=${local_port}&local_host=${local_host}`,
+          { method: "POST" }
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              alert(data.message);
+              location.reload(); // 重新加载页面以显示新服务
+            } else {
+              alert("Failed to add the service.");
+            }
+          });
+      }
+    </script>
+    <script>
+      function editService(buttonElement) {
+        var parentRow = buttonElement.parentElement.parentElement;
+
+        var serverName = parentRow.children[0].innerText;
+        var domain = parentRow.children[1].innerText;
+        var localPort = parentRow.children[2].innerText;
+        var localHost = parentRow.children[3].innerText;
+
+        // Fill the edit form with the extracted values
+        document
+          .getElementById("editServerName")
+          .setAttribute("data-original", serverName);
+        document.getElementById("editServerName").value = serverName;
+
+        document
+          .getElementById("editDomain")
+          .setAttribute("data-original", domain);
+        document.getElementById("editDomain").value = domain;
+
+        document.getElementById("editLocalPort").value = localPort;
+        document.getElementById("editLocalHost").value = localHost;
+
+        // Show the edit form
+        console.log("editService called");
+        document.getElementById("editForm").style.display = "block";
+      }
+    </script>
+
+    <script>
+      function submitEdit() {
+        // Extract original service details from the edit form
+        var originalServerName = document
+          .getElementById("editServerName")
+          .getAttribute("data-original");
+        var originalDomain = document
+          .getElementById("editDomain")
+          .getAttribute("data-original");
+
+        // Extract new service details from the edit form
+        var newServerName = document.getElementById("editServerName").value;
+        var newDomain = document.getElementById("editDomain").value;
+        var newLocalPort = document.getElementById("editLocalPort").value;
+        var newLocalHost = document.getElementById("editLocalHost").value;
+
+        // Send these details to the server to update the service using AJAX
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/update", true);
+        xhr.setRequestHeader(
+          "Content-Type",
+          "application/x-www-form-urlencoded"
+        );
+        xhr.onload = function () {
+          if (
+            xhr.status === 200 &&
+            JSON.parse(xhr.responseText).status === "success"
+          ) {
+            // Refresh the page or update the service list on the page
+            location.reload();
+          } else {
+            // Handle error
+            alert("Error updating the service. Please try again.");
+          }
+        };
+        xhr.send(
+          "server_name=" +
+            originalServerName +
+            "&domain=" +
+            originalDomain +
+            "&new_server_name=" +
+            newServerName +
+            "&new_domain=" +
+            newDomain +
+            "&new_local_port=" +
+            newLocalPort +
+            "&new_local_host=" +
+            newLocalHost
+        );
+
+        // Hide the edit form
+        document.getElementById("editForm").style.display = "none";
+      }
+    </script>
+  </body>
+</html>
